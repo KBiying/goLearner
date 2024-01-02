@@ -5,18 +5,21 @@ import (
 )
 
 
-func Sum(numbers [5]int) int{
+func Sum(numbers []int) int{
 	sum:= 0
-	for i:=0; i<5; i++{
-		sum += numbers[i]
+	for _, number := range numbers{
+		sum+= number
 	}
 	return sum
 }
 func TestSum(t *testing.T){
-	numbers := [5]int{1,2,3,4,5}
-	got := Sum(numbers)
-	want:=15
-	if want!=got{
-		t.Errorf("got %d want %d given, %v",want, got, numbers)
-	}
+	t.Run("collection of 5 numbers", func(t *testing.T){
+		numbers := []int{1,2,3,4,5}
+		got := Sum(numbers)
+		want:=15
+		if want!=got{
+			t.Errorf("got %d want %d given, %v",want, got, numbers)
+		}
+	})
+	
 }
