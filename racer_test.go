@@ -29,13 +29,18 @@ func ping(url string) chan bool {
 	return ch
 }
 
+var timeout = 10 * time.Second
+
 func Racer(a, b string) (winner string, err error) {
+	return CongrableRacer(a, b, timeout)
+}
+func CongrableRacer(a, b string, timeout time.Duration) (winner string, err error) {
 	select {
 	case <-ping(a):
 		return a, nil
 	case <-ping(b):
 		return b, nil
-	case <-time.After(10 * time.Second): //send a signal into channel after 10s
+	case <-time.After(timeout): //send a signal into channel after 10s
 		return "", fmt.Errorf("timed out wating for %s and %s", a, b)
 	}
 }
@@ -60,7 +65,10 @@ func TestRacer(t *testing.T) {
 		fastURL := fastServer.URL
 
 		want := fastURL
-		got := Racer(slowURL, fastURL)
+		got, err := Racer(slowURL, fastURL)
+		if err != nil {
+			t.Fatalf("fid not eacpetc an error but got one %v", err)
+		}
 		if got != want {
 			t.Errorf("got '%s', want '%s'", got, want)
 		}
@@ -73,7 +81,7 @@ func TestRacer(t *testing.T) {
 		defer serverA.Close()
 		defer serverB.Close()
 
-		_, err := Racer(serverA.URL, serverB.URL)
+		_, err := CongrableRacer(serverA.URL, serverB.URL, 20*time.Millisecond)
 
 		if err == nil {
 			t.Error("expected an error but did not get one")
