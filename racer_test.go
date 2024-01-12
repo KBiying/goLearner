@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,28 +29,54 @@ func ping(url string) chan bool {
 	return ch
 }
 
-func Racer(a, b string) (winner string) {
-	aDuration := measureResponseTime(a)
-	bDuration := measureResponseTime(b)
-
-	if aDuration < bDuration {
-		return a
+func Racer(a, b string) (winner string, err error) {
+	select {
+	case <-ping(a):
+		return a, nil
+	case <-ping(b):
+		return b, nil
+	case <-time.After(10 * time.Second): //send a signal into channel after 10s
+		return "", fmt.Errorf("timed out wating for %s and %s", a, b)
 	}
-	return b
 }
 
+// func Racer(a, b string) (winner string) {
+// 	aDuration := measureResponseTime(a)
+// 	bDuration := measureResponseTime(b)
+
+// 	if aDuration < bDuration {
+// 		return a
+// 	}
+// 	return b
+// }
+
 func TestRacer(t *testing.T) {
-	slowServer := makeDelayServer(20 * time.Millisecond)
-	fastServer := makeDelayServer(0 * time.Millisecond)
-	defer slowServer.Close()
-	defer fastServer.Close()
-	slowURL := slowServer.URL
-	fastURL := fastServer.URL
+	t.Run("select quiker one", func(t *testing.T) {
+		slowServer := makeDelayServer(20 * time.Millisecond)
+		fastServer := makeDelayServer(0 * time.Millisecond)
+		defer slowServer.Close()
+		defer fastServer.Close()
+		slowURL := slowServer.URL
+		fastURL := fastServer.URL
 
-	want := fastURL
-	got := Racer(slowURL, fastURL)
-	if got != want {
-		t.Errorf("got '%s', want '%s'", got, want)
-	}
+		want := fastURL
+		got := Racer(slowURL, fastURL)
+		if got != want {
+			t.Errorf("got '%s', want '%s'", got, want)
+		}
+	})
 
+	t.Run("return while out of time 10s ", func(t *testing.T) {
+		serverA := makeDelayServer(11 * time.Second)
+		serverB := makeDelayServer(12 * time.Second)
+
+		defer serverA.Close()
+		defer serverB.Close()
+
+		_, err := Racer(serverA.URL, serverB.URL)
+
+		if err == nil {
+			t.Error("expected an error but did not get one")
+		}
+	})
 }
